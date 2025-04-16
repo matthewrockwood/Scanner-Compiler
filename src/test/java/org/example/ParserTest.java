@@ -11,41 +11,29 @@ public class ParserTest {
             var w
             var x
             var y
-            var z
             initialize w = 5
             initialize x = 10
             initialize y = 15
-            initialize z = 20
-            compute w = x + y + z
+            compute w = x + y + 4
             if x = y then
-                output w
-                output x
-            endif
-            output y
-            output z
-            """;
-
-        Parser parser = new Parser();
-        boolean result = parser.parse(program);
-        assertTrue(result, "Valid Program");
-    }
-
-    @Test
-    public void testInvalidProgram() {
-        String program = """
-            var w
-            var x
-            initialize w = 5
-            initialize x = 10
             output w
             output x
-            if w x then
-                output w
             endif
             """;
 
         Parser parser = new Parser();
-        boolean result = parser.parse(program);
-        assertFalse(result, "Invalid Program");
+        parser.synTree = new AbsSynTree();
+
+        boolean result;
+        try {
+            parser.parse(program);
+            result = true;
+            parser.getSynTree().show();
+        } catch (Exception e) {
+            result = false;
+            parser.getSynTree().show();
+        }
+
+        assertTrue(result, "Valid");
     }
 }

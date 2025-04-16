@@ -1,25 +1,25 @@
 package org.example;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.PushbackReader;
-
 public class Main {
     public static void main(String[] args) {
-//        try {
-//            FileReader fr = new FileReader("input.txt");
-//            PushbackReader pb = new PushbackReader(fr);
-//            Scanner Scanner = new Scanner(pb);
-//
-//            Scanner.TOKEN nextToken = Scanner.scan();
-//
-//            while (nextToken != org.example.Scanner.TOKEN.SCANEOF){
-//                System.out.println(nextToken);
-//                nextToken = Scanner.scan();
-//            }
-//
-//        } catch (FileNotFoundException e) {
-//            throw new RuntimeException(e);
-//        }
-   }
+        String program = """
+            var w
+            var x
+            var y
+            initialize w = 5
+            initialize x = 10
+            initialize y = 15
+            compute w = x + y + 4
+            if x = y then
+            output w
+            output x
+            endif
+            """;
+
+        Parser parser = new Parser();
+        parser.synTree = new AbsSynTree();
+
+        parser.parse(program);
+        parser.getSynTree().show(); 
+    }
 }

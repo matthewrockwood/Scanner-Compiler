@@ -6,6 +6,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Parser {
+    public AbsSynTree getSynTree() {
+        return synTree;
+    }
+
+    public AbsSynTree synTree;
+
     enum TYPE {INTDATATYPE}
 
     public class SymbolTableItem {
@@ -40,14 +46,18 @@ public class Parser {
         System.exit(1);
     }
 
-    public boolean parse(String program){
+    public AbsSynTree.NodeProgram parse(String program){
         StringReader sr = new StringReader(program);
         PushbackReader pb = new PushbackReader(sr);
         scanner = new Scanner(pb);
         this.token = scanner.scan();
 
-        parseVariables();
-        parseStatements();
+       AbsSynTree.NodeVars vars = parseVariables();
+        AbsSynTree.NodeStmts stmts = parseStatements();
+
+        AbsSynTree.NodeProgram root = synTree.new NodeProgram(vars,stmts);
+
+        synTree.setRoot(root);
 
         if(tokenMatch(Scanner.TOKEN.SCANEOF)){
             System.out.println("Success");
@@ -55,10 +65,11 @@ public class Parser {
         else{
             System.out.println("Unmatched EOF");
         }
-        return true;
+        return synTree.getRoot();
     }
 
-    private void parseVariables() {
+    private AbsSynTree.NodeVars parseVariables() {
+        AbsSynTree.NodeVars ans = synTree.new NodeVars();
         while (token == Scanner.TOKEN.VAR) {
             tokenMatch(Scanner.TOKEN.VAR);
             if (token == Scanner.TOKEN.ID) {
@@ -70,64 +81,141 @@ public class Parser {
                 } else {
                     lookupTable.put(varName, new SymbolTableItem(varName, TYPE.INTDATATYPE));
                 }
+
+                AbsSynTree.NodeID nodeID = synTree.new NodeID();
+                nodeID.name = varName;
+                ans.ids.add(nodeID);
                 tokenMatch(Scanner.TOKEN.ID);
             } else {
                 throwError("ID");
             }
+
         }
+        return ans;
     }
 
-    private void parseStatements() {
+    private AbsSynTree.NodeStmts parseStatements() {
+        AbsSynTree.NodeStmts stmts = synTree.new NodeStmts();
         while (token == Scanner.TOKEN.OUTPUT || token == Scanner.TOKEN.INITIALIZE
                 || token == Scanner.TOKEN.IF || token == Scanner.TOKEN.COMPUTE) {
-            parseStatement();
+            AbsSynTree.NodeStmt stmt = parseStatement();
+            stmts.stmtList.add(stmt);
         }
+        return stmts;
     }
 
-    private void parseStatement() {
+    private AbsSynTree.NodeStmt parseStatement() {
+
         if (token == Scanner.TOKEN.OUTPUT) {
             tokenMatch(Scanner.TOKEN.OUTPUT);
+
+            String varName = scanner.getTokenBufferString();
+            AbsSynTree.NodeID ID = synTree.new NodeID();
+            ID.name = varName;
+
             tokenMatch(Scanner.TOKEN.ID);
+
+            return synTree.new NodeOutput(ID);
+
         } else if (token == Scanner.TOKEN.INITIALIZE) {
             tokenMatch(Scanner.TOKEN.INITIALIZE);
+
+            String varName = scanner.getTokenBufferString();
+            AbsSynTree.NodeID ID = synTree.new NodeID();
+            ID.name = varName;
+
             tokenMatch(Scanner.TOKEN.ID);
             tokenMatch(Scanner.TOKEN.EQUALS);
+
+            int constNum = Integer.parseInt(scanner.getTokenBufferString());
+            AbsSynTree.NodeConstInt constNode = synTree.new NodeConstInt();
+            constNode.x = constNum;
+
             tokenMatch(Scanner.TOKEN.CONSTINT);
+
+            return synTree.new NodeInitialize(ID,constNode);
+
+
         } else if (token == Scanner.TOKEN.IF) {
             tokenMatch(Scanner.TOKEN.IF);
+
+            // Get LHS ID
+            String varName1 = scanner.getTokenBufferString();
+            AbsSynTree.NodeID ID1 = synTree.new NodeID();
+            ID1.name = varName1;
             tokenMatch(Scanner.TOKEN.ID);
+
             tokenMatch(Scanner.TOKEN.EQUALS);
+
+            // Get RHS ID
+            String varName2 = scanner.getTokenBufferString();
+            AbsSynTree.NodeID ID2 = synTree.new NodeID();
+            ID2.name = varName2;
             tokenMatch(Scanner.TOKEN.ID);
+
             tokenMatch(Scanner.TOKEN.THEN);
-            parseStatements();
+            AbsSynTree.NodeStmts iftrue = parseStatements();
             tokenMatch(Scanner.TOKEN.ENDIF);
-        } else if (token == Scanner.TOKEN.COMPUTE) {
+
+            return synTree.new Nodeif(ID1, ID2, iftrue);
+        }
+        else if (token == Scanner.TOKEN.COMPUTE) {
             tokenMatch(Scanner.TOKEN.COMPUTE);
+
+            String varName = scanner.getTokenBufferString();
+            AbsSynTree.NodeID ID = synTree.new NodeID();
+            ID.name = varName;
+
             tokenMatch(Scanner.TOKEN.ID);
             tokenMatch(Scanner.TOKEN.EQUALS);
-            parseAdd();
+            AbsSynTree.NodeExpr compute = parseAdd();
+
+            return synTree.new NodeCompute(ID,compute);
         } else {
             throwError("Statement (OUTPUT, INITIALIZE, IF, COMPUTE)");
+            return null;
         }
+
     }
 
-    private void parseAdd() {
-        parseValue();
-        parseAddEnd();
+    private AbsSynTree.NodeExpr parseAdd() {
+        AbsSynTree.NodeExpr lhs = parseValue();
+
+
+        return parseAddEnd(lhs);
     }
 
-    private void parseAddEnd() {
+    private AbsSynTree.NodeExpr parseAddEnd(AbsSynTree.NodeExpr lhs) {
+
         while (token == Scanner.TOKEN.PLUS) {
             tokenMatch(Scanner.TOKEN.PLUS);
-            parseValue();
+            AbsSynTree.NodeExpr rhs = parseValue();
+            lhs = synTree.new NodePlus(lhs,rhs);
         }
+        return lhs;
     }
 
-    private void parseValue() {
-        if (token == Scanner.TOKEN.ID || token == Scanner.TOKEN.CONSTINT) {
+    private AbsSynTree.NodeExpr parseValue() {
+        if (token == Scanner.TOKEN.ID) {
+            String varName = scanner.getTokenBufferString();
+            AbsSynTree.NodeID ID = synTree.new NodeID();
+            ID.name = varName;
+
             tokenMatch(token);
+
+            return ID;
+
+        } else if (token == Scanner.TOKEN.CONSTINT) {
+            int value = Integer.parseInt(scanner.getTokenBufferString());
+            AbsSynTree.NodeConstInt ans = synTree.new NodeConstInt();
+            ans.x = value;
+
+            tokenMatch(token);
+
+            return ans;
         } else {
             throwError("ID or CONSTINT");
+            return null;
         }
     }
 
